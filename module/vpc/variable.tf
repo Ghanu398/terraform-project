@@ -1,9 +1,5 @@
-variable "region" {
-  type = string
-}
-
 variable "cidr_block" {
-  type = string
+type = string
 }
 
 variable "enable_dns_hostnames" {
@@ -29,3 +25,7 @@ variable "subnet" {
     type = string 
   }))
 }
+
+
+
+
