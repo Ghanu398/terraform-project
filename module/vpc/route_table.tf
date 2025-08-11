@@ -35,8 +35,9 @@ resource "aws_route" "public_route" {
 }
 
 resource "aws_route" "private_route" {
+  count = terraform.workspace == "dev" ? 0 : 1
   route_table_id = one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-1-1-",rt.tags["Name"]))])
-  nat_gateway_id = aws_nat_gateway.nat_gateway.id
+  nat_gateway_id = aws_nat_gateway.nat_gateway[*].id
   destination_cidr_block = "0.0.0.0/0"
   depends_on = [ aws_route_table.route_table ]
 }

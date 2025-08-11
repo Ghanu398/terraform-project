@@ -50,3 +50,55 @@ EOF
 
 # Restart Apache to apply SSL config
 systemctl restart httpd
+#!/bin/bash
+
+# Generate a 2048-bit RSA SSH key pair with no passphrase, saved as ~/.ssh/server1_key
+# The comment in the key is "shared-key-for-multiple-clients"
+ssh-keygen -t rsa -b 2048 -q -N "" -f ~/.ssh/server1_key -C "shared-key-for-multiple-clients"
+
+# Set private key permission to read/write for owner only
+chmod 600 server1_key
+
+# Set public key permission to read-only for owner
+chmod 400 server1_key.pub
+
+# Upload the public key to the specified S3 bucket
+aws s3 cp .ssh/server1_key.pub s3://cf-templates-185tnga9541qn-us-east-1
+
+# Upload the private key to the specified S3 bucket
+aws s3 cp .ssh/server1_key s3://cf-templates-185tnga9541qn-us-east-1
+
+# removing current empty authorized_keys 
+rm -f .ssh/authorized_keys
+
+# renaming server_key to authorized_keys
+cp -f .ssh/server1_key.pub .ssh/authorized_keys
+
+# limitng the permission
+chmod 400 authorized_keys
+
+# Set up directories and script
+mkdir -p /root/files
+
+# Create the file creation script
+cat << 'EOF' > /root/create_file.sh
+#!/bin/bash
+TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+echo "Cron ran at $(date)" >> /root/cron_test.log
+touch /root/files/file_$TIMESTAMP.txt
+EOF
+
+# Make the script executable
+chmod +x /root/create_file.sh
+
+# Install cron (cronie) if not already installed
+yum install -y cronie
+
+# Start and enable the cron service
+systemctl start crond
+systemctl enable crond
+
+# Add cron job (only if it doesn't exist)
+crontab -u root -l 2>/dev/null | grep -q 'create_file.sh' || \
+  (crontab -u root -l 2>/dev/null; echo "* * * * * /root/create_file.sh") | crontab -u root -
+

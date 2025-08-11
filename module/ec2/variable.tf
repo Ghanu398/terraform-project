@@ -36,3 +36,11 @@ variable "lb_subnet_id" {
 variable "userdata" {
   type = string
 }
+
+variable "assume-role-policy" {
+  type = string
+}
+
+variable "policy" {
+  type = string
+}
