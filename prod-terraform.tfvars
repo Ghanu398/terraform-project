@@ -37,3 +37,5 @@ egress_rule = [ {
 
 ami = "ami-0169aa51f6faf20d5"
 instance_type = "t2.micro"
+
+userdata = "./userdata1.sh"

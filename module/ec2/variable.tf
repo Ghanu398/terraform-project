@@ -44,3 +44,7 @@ variable "assume-role-policy" {
 variable "policy" {
   type = string
 }
+
+variable "ec2-policy" {
+  type = string
+}

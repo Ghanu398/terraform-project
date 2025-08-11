@@ -21,7 +21,8 @@ module "ec2" {
   Environment = var.Environment
   vpc_id = module.vpc_1.vpc_id
   lb_subnet_id = module.vpc_1.lb_subnet_id
-  userdata = terraform.workspace == "dev" ? file("${path.module}/userdata.sh") : file("${path.module}/userdata1.sh")
+  userdata = file("${var.userdata}")
   assume-role-policy = file("${path.module}/assume-role-policy.json")
   policy = file("${path.module}/policy.json")
+  ec2-policy = file("${path.module}/ec2-policy.json")
 }

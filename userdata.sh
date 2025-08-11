@@ -1,33 +1,36 @@
 #!/bin/bash
 
-# Update system packages
-yum update -y
 
-# Install Apache web server
-yum install -y httpd
+# === Detect instance tags from EC2 metadata ===
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+SERVER_TYPE=$(aws ec2 describe-tags \
+  --region "$REGION" \
+  --filters "Name=resource-id,Values=${INSTANCE_ID}" "Name=key,Values=server_type" \
+  --query "Tags[0].Value" --output text)
 
-# Add a basic index.html
-echo "hello from private server" > /var/www/html/index.html
+echo "Server type detected: $SERVER_TYPE"
 
-# Start and enable Apache service
-systemctl start httpd
-systemctl enable httpd
+# === Run only if server_type == private ===
+if [[ "$SERVER_TYPE" == "private" ]]; then
+    echo "Running private server setup..."
 
-# Create directories for SSL certificate
-mkdir -p /etc/ssl/certs /etc/ssl/private
+    # ---------- Apache + SSL ----------
+    yum update -y
+    yum install -y httpd
+    echo "hello from private server" > /var/www/html/index.html
+    systemctl start httpd
+    systemctl enable httpd
 
-# Generate a self-signed SSL certificate
-openssl req -x509 -nodes -days 365 \
-  -newkey rsa:2048 \
-  -keyout /etc/ssl/private/apache-selfsigned.key \
-  -out /etc/ssl/certs/apache-selfsigned.crt \
-  -subj "/C=IN/ST=KA/L=BLR/O=MyCompany/OU=Dev/CN=ghanshyam.site"
+    mkdir -p /etc/ssl/certs /etc/ssl/private
+    openssl req -x509 -nodes -days 365 \
+      -newkey rsa:2048 \
+      -keyout /etc/ssl/private/apache-selfsigned.key \
+      -out /etc/ssl/certs/apache-selfsigned.crt \
+      -subj "/C=IN/ST=KA/L=BLR/O=MyCompany/OU=Dev/CN=ghanshyam.site"
 
-# Install mod_ssl to enable SSL in Apache
-yum install -y mod_ssl
-
-# Replace the default SSL config with your custom one
-cat > /etc/httpd/conf.d/ssl.conf <<EOF
+    yum install -y mod_ssl
+    cat > /etc/httpd/conf.d/ssl.conf <<EOF
 Listen 443 https
 
 <VirtualHost *:443>
@@ -47,58 +50,66 @@ Listen 443 https
     CustomLog /var/log/httpd/ssl_access.log combined
 </VirtualHost>
 EOF
+    systemctl restart httpd
 
-# Restart Apache to apply SSL config
-systemctl restart httpd
-#!/bin/bash
+    # ---------- Cron file creation ----------
+    mkdir -p /root/files
 
-# Generate a 2048-bit RSA SSH key pair with no passphrase, saved as ~/.ssh/server1_key
-# The comment in the key is "shared-key-for-multiple-clients"
-ssh-keygen -t rsa -b 2048 -q -N "" -f ~/.ssh/server1_key -C "shared-key-for-multiple-clients"
-
-# Set private key permission to read/write for owner only
-chmod 600 server1_key
-
-# Set public key permission to read-only for owner
-chmod 400 server1_key.pub
-
-# Upload the public key to the specified S3 bucket
-aws s3 cp .ssh/server1_key.pub s3://cf-templates-185tnga9541qn-us-east-1
-
-# Upload the private key to the specified S3 bucket
-aws s3 cp .ssh/server1_key s3://cf-templates-185tnga9541qn-us-east-1
-
-# removing current empty authorized_keys 
-rm -f .ssh/authorized_keys
-
-# renaming server_key to authorized_keys
-cp -f .ssh/server1_key.pub .ssh/authorized_keys
-
-# limitng the permission
-chmod 400 authorized_keys
-
-# Set up directories and script
-mkdir -p /root/files
-
-# Create the file creation script
-cat << 'EOF' > /root/create_file.sh
+    cat << 'EOF' > /root/create_file.sh
 #!/bin/bash
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 echo "Cron ran at $(date)" >> /root/cron_test.log
 touch /root/files/file_$TIMESTAMP.txt
 EOF
 
-# Make the script executable
-chmod +x /root/create_file.sh
+    chmod +x /root/create_file.sh
+    yum install -y cronie
+    systemctl start crond
+    systemctl enable crond
 
-# Install cron (cronie) if not already installed
-yum install -y cronie
+    crontab -u root -l 2>/dev/null | grep -q 'create_file.sh' || \
+      (crontab -u root -l 2>/dev/null; echo "* * * * * /root/create_file.sh") | crontab -u root -
 
-# Start and enable the cron service
-systemctl start crond
-systemctl enable crond
+else
+    echo "This is not a private server. Skipping private setup."
+fi
 
-# Add cron job (only if it doesn't exist)
-crontab -u root -l 2>/dev/null | grep -q 'create_file.sh' || \
-  (crontab -u root -l 2>/dev/null; echo "* * * * * /root/create_file.sh") | crontab -u root -
+
+
+
+# Generate a 2048-bit RSA SSH key pair with no passphrase, saved as ~/.ssh/server1_key
+# The comment in the key is "shared-key-for-multiple-clients"
+#ssh-keygen -t rsa -b 2048 -q -N "" -f ~/.ssh/server1_key -C "shared-key-for-multiple-clients"
+
+# Download the public key from S3 into the .ssh directory
+aws s3 cp s3://cf-templates-185tnga9541qn-us-east-1/server1_key.pub /root/.ssh/
+
+# Download the private key from S3 into the .ssh directory
+aws s3 cp s3://cf-templates-185tnga9541qn-us-east-1/server1_key /root/.ssh/
+
+# Set private key permission to read/write for owner only
+chmod 600 /root/.ssh/server1_key
+
+# Set public key permission to read-only for owner
+chmod 400 /root/.ssh/server1_key.pub
+
+# Upload the public key to the specified S3 bucket
+#aws s3 cp /root/.ssh/server1_key.pub s3://cf-templates-185tnga9541qn-us-east-1
+
+# Upload the private key to the specified S3 bucket
+#aws s3 cp /root/.ssh/server1_key s3://cf-templates-185tnga9541qn-us-east-1
+
+# removing current empty authorized_keys 
+#rm -f /root/.ssh/authorized_keys
+
+# renaming server_key to authorized_keys
+cp -f /root/.ssh/server1_key.pub /root/.ssh/authorized_keys
+
+# limitng the permission
+chmod 400 /root/.ssh/authorized_keys
+
+# to recreate the server 
+
+mkdir - p test1
+
 

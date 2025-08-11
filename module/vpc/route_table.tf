@@ -11,33 +11,42 @@ resource "aws_route_table" "route_table" {
 
 
 resource "aws_route_table_association" "public-route_table_association" {
-  route_table_id = local.rt1
-  subnet_id = one([for subnet in aws_subnet.subnets:subnet.id if can(regex("public-subnet-vpc-1-1",subnet.tags["Name"]))])
+  route_table_id = terraform.workspace == "dev" ? local.rt1 : local.rt2
+  subnet_id = terraform.workspace == "dev" ? one([for subnet in aws_subnet.subnets:subnet.id if can(regex("public-subnet-vpc-1-1",subnet.tags["Name"]))]) : one([for subnet in aws_subnet.subnets:subnet.id if can(regex("public-subnet-vpc-2",subnet.tags["Name"]))])
 }
 
 resource "aws_route_table_association" "public-route_table_association-2" {
+  count = terraform.workspace == "dev" ? 1 :0
   route_table_id = local.rt1
-  subnet_id = one([for subnet in aws_subnet.subnets:subnet.id if can(regex("public-subnet-vpc-1-2",subnet.tags["Name"]))])
+  subnet_id = one([for subnet in aws_subnet.subnets:subnet.id if can(regex("public-subnet-vpc-1-2",subnet.tags["Name"]))]) 
 }
 
 resource "aws_route_table_association" "private-route_table_association" {
-  route_table_id = one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-1-1-",rt.tags["Name"]))])
+  route_table_id = terraform.workspace == "dev" ? one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-1-1-",rt.tags["Name"]))]) : one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-2-",rt.tags["Name"]))])
   subnet_id = one([for subnet in aws_subnet.subnets:subnet.id if can(regex("private-subnet-",subnet.tags["Name"]))])
 }
 
 
 
 resource "aws_route" "public_route" {
-  route_table_id = local.rt1
+  route_table_id = terraform.workspace == "dev" ? local.rt1 : local.rt2
   gateway_id = aws_internet_gateway.internet_gateway.id
   destination_cidr_block = "0.0.0.0/0"
   depends_on = [ aws_route_table.route_table ]
 }
 
 resource "aws_route" "private_route" {
-  count = terraform.workspace == "dev" ? 0 : 1
+  count = terraform.workspace == "dev" ? 1 : 0
   route_table_id = one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-1-1-",rt.tags["Name"]))])
-  nat_gateway_id = aws_nat_gateway.nat_gateway[*].id
+  nat_gateway_id = aws_nat_gateway.nat_gateway[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  depends_on = [ aws_route_table.route_table ]
+}
+
+resource "aws_route" "private_route-2" {
+  count = terraform.workspace == "prod" ? 1 : 0
+  route_table_id = one([for rt in aws_route_table.route_table:rt.id if can(regex("private-subnet-vpc-2-",rt.tags["Name"]))])
+  nat_gateway_id = aws_nat_gateway.prod_nat_gateway[0].id
   destination_cidr_block = "0.0.0.0/0"
   depends_on = [ aws_route_table.route_table ]
 }

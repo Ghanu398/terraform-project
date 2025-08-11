@@ -11,12 +11,23 @@ resource "aws_iam_policy" "policy" {
   name = "s3-get-put-list-policy"
 }
 
+resource "aws_iam_policy" "ec2-policy" {
+  policy = var.ec2-policy
+  name = "ec2-get-tag-list-policy"
+}
+
 resource "aws_iam_policy_attachment" "policy_attachment" {
   policy_arn = aws_iam_policy.policy.arn
   roles = [aws_iam_role.ec2-s3-role.name]
   name = "iam-policy-attachment"
 }
 
+
+resource "aws_iam_policy_attachment" "ec2-policy_attachment" {
+  policy_arn = aws_iam_policy.ec2-policy.arn
+  roles = [aws_iam_role.ec2-s3-role.name]
+  name = "iam-ec2-policy-attachment"
+}
 resource "aws_iam_instance_profile" "instance_profile" {
   role = aws_iam_role.ec2-s3-role.name 
   name = "ec2-s3-iam-role"
