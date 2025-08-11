@@ -25,4 +25,5 @@ module "ec2" {
   assume-role-policy = file("${path.module}/assume-role-policy.json")
   policy = file("${path.module}/policy.json")
   ec2-policy = file("${path.module}/ec2-policy.json")
+  public_subnet_id_2 = "module.vpc_1.public_subnet_id_2"
 }

@@ -6,13 +6,13 @@ Name = "Vpc-us-east-2"
 Environment = "Prod"
 subnet = [ {
   cidr_block = "10.1.0.0/24"
-  az = "us-east-1a"
+  az = "us-east-2a"
   type = "private"
   name = "private-subnet-vpc-2"
 },
 {
     cidr_block = "10.1.1.0/24"
-    az = "us-east-1a"
+    az = "us-east-2a"
     type = "public"
     name = "public-subnet-vpc-2"
 }

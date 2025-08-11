@@ -11,6 +11,12 @@ output "public_subnet_id" {
   value = one([for subnet in aws_subnet.subnets : subnet.id if can(regex("public-subnet-vpc-1-1",subnet.tags["Name"]))])
 }
 
+# output "public_subnet_id_2" {
+  
+#   value = one([for subnet in aws_subnet.subnets : subnet.id if can(regex("public-subnet-",subnet.tags["Name"]))])
+# }
+
+
 output "lb_subnet_id" {
   value = [for subnet in aws_subnet.subnets : subnet.id if can(regex("public-subnet-vpc-1-",subnet.tags["Name"]))]
 }

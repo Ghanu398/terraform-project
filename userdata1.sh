@@ -19,7 +19,7 @@ chmod 400 /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/server1_key
 
 # Pause for 3 minutes before continuing so that i can configure vpc_peering manually 
-sleep 180
+sleep 360
 
 
 
@@ -49,7 +49,7 @@ if [[ "$SERVER_TYPE" == "private" ]]; then
 
     REMOTE_DIR=/root/files
     LOCAL_DIR=/root/copied_files
-    KEY_PATH=/root/.ssh/server2_key
+    KEY_PATH=/root/.ssh/server1_key
 
     mkdir -p $LOCAL_DIR
     mkdir -p /root/.ssh
@@ -58,9 +58,10 @@ if [[ "$SERVER_TYPE" == "private" ]]; then
     # echo "-----BEGIN PRIVATE KEY-----..." > $KEY_PATH
     # chmod 400 $KEY_PATH
 
-    cat <<EOF > /root/fetch_files.sh
+    cat << EOF > /root/fetch_files.sh
 #!/bin/bash
 rsync -avz -e "ssh -i $KEY_PATH -o StrictHostKeyChecking=no" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/ $LOCAL_DIR/
+
 EOF
     chmod +x /root/fetch_files.sh
 

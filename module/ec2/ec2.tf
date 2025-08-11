@@ -2,7 +2,7 @@ resource "aws_instance" "public_server" {
     count = 1
   ami = var.ami
   instance_type = var.instance_type
-  subnet_id = var.subnet_id
+  subnet_id = terraform.workspace == "dev" ? var.subnet_id : var.public_subnet_id_2
   vpc_security_group_ids = [ var.sg_id ]
     metadata_options {
     http_endpoint = "enabled"  # Allow metadata
